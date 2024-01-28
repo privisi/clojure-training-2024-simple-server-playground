@@ -1,4 +1,5 @@
 (ns simple-server.core
+  (:require clojure.pprint)
   (:use ring.adapter.jetty))
 
 
@@ -6,7 +7,7 @@
   (clojure.pprint/pprint request)
   {:status 200
    :headers {"Content-Type" "text/plain"}
-   :body "Hello, class!"})
+   :body "Hello, class!2"})
 
 
 (def server
