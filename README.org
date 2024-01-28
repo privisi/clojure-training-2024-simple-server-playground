@@ -3,6 +3,8 @@
 A toy repository to demonstrate important concepts in building
 an HTTP api service in clojure.
 
+Based on https://github.com/alain-picard/simple-server-playground
+
 * Usage
 
   #+begin_src shell
