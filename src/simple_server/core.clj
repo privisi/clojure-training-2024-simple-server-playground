@@ -1,6 +1,19 @@
 (ns simple-server.core
-  (:require clojure.pprint)
-  (:use ring.adapter.jetty))
+  (:require
+   [clojure.pprint]
+   [ring.adapter.jetty :refer [run-jetty]]
+
+   [compojure.core :refer [GET POST ANY defroutes]]
+   [ring.mock.request :as mock]))
+
+;;; Routing
+;;;
+;; The process of associating handlers with urls (and
+;; other request parameters) is called ROUTING.
+;;
+;; The most popular tool for doing this in clojure with Ring is COMPOJURE.
+;; Let's re-implement our game using compojure.
+;;
 
 
 (defn no-such-uri-response []
@@ -43,13 +56,26 @@
    :headers {"Content-Type" "text/plain"}
    :body    "OK- start guessing at /guess"})
 
+;;; Creating these requests is tiresome, so there is a utility library
+;;; often used in testing, RING.MOCK.
 
-(defn handler [request]
-  #_(clojure.pprint/pprint request)
-  (condp = (:uri request)
-    "/new-game" (new-game-response)
-    "/guess"    (guess-response request)
-    (no-such-uri-response)))
+(mock/request :get "/new-game")
+
+;; Now we can write this more simply, like so:
+((GET "/new-game" [] "foo") (mock/request :get "/new-game"))
+
+;; Note that our function discrimitates on both the uri and the request-method:
+((GET "/new-game" [] "foo") (mock/request :get "/unknown"))
+
+((GET "/new-game" [] "foo") (mock/request :post "/new-game"))
+
+
+(defroutes game-routes
+  (GET "/new-game" [] (new-game-response))     ; Why does one have it wrapped in (),
+  (GET "/guess"    [] guess-response)          ; and this one doesn't?
+  (ANY "*"         [] (no-such-uri-response))) ; Our catch all, if nothing matches.
+
+(def handler game-routes)
 
 
 (defonce server
