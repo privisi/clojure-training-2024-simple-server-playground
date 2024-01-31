@@ -1,49 +1,47 @@
 (ns simple-server.core
-  (:require
-   [clojure.pprint]
-   [compojure.core :refer [GET POST ANY defroutes]]
-   [compojure.coercions :refer [as-int]]
-   [ring.adapter.jetty :refer [run-jetty]]
-   [ring.middleware.defaults :as middleware]
-   [ring.mock.request :as mock]
-   [ring.util.response :refer [response created redirect not-found status]]))
+  (:require [clojure.pprint]
+            [ring.adapter.jetty :refer [run-jetty]]
+            [ring.util.response :as ring :refer [response created redirect not-found status]]
+            [compojure.core :refer [GET POST ANY defroutes]]
+            [compojure.coercions :refer [as-int]]
+            [ring.middleware.defaults :as middleware]
 
-;;; Let's rewrite our game a bit more neatly
-;;; with proper destructuring and middlewares.
+            [ring.mock.request :as mock]
+            [simple-server.simple-game :as game]))
 
-(def game-in-progress (atom nil))
+;;; Finally, let us truly separate concerns between our "application code"
+;;; and our "http code".  Our game now lives in its own namespace, and
+;;; is fully testable independent of our "presentation layer".
 
 (defn new-game-handler []
-  ;; Make our new game:
-  (reset! game-in-progress (+ 1 (rand-int 10)))
-  (response "OK- start guessing at /guess"))
+  (when (game/new-game!)
+    (response "OK- start guessing at /guess")))
+
+(response "OK- start guessing at /guess")
 
 (defn guess-handler [guess]
-  (cond
-    (nil? guess)
-    ;; Notice, there is no helper for a 400 response, but we can
-    ;; easily create one like this:
-    (-> (response  "You need to supply a guess with /guess?guess=N")
-        (status 400))
-
-    (= guess @game-in-progress)
-    (and (reset! game-in-progress (+ 1 (rand-int 10)))
-         (response  "Congratulations! You win!"))
-
-    (< guess @game-in-progress)
-    (response "Too low.")
-
-    (> guess @game-in-progress)
-    (response  "Too high.")))
+  (condp = (game/guess-answer guess)
+    nil       (-> (response  "You need to supply a guess with /guess?guess=N")
+                  (status 400))
+    :game-over (response  "Congratulations! You win!")
+    :too-low   (response  "Too low.")
+    :too-high  (response  "Too high.")))
 
 (defroutes game-routes
   (GET "/new-game" []                 (new-game-handler))
   (GET "/guess"    [guess :<< as-int] (guess-handler guess))
   (ANY "*"         []                 (not-found "Sorry, No such URI on this server!")))
 
+(defn add-content-type-htmltext-header [handler]
+  (fn [request]
+    (let [response (handler request)]
+      (-> response
+          (ring/header "Content-Type" "text/html")))))
+
 (def handler
   (-> game-routes
-      (middleware/wrap-defaults middleware/api-defaults)))
+      (middleware/wrap-defaults middleware/api-defaults)
+      (add-content-type-htmltext-header)))
 
 (comment
   (handler (mock/request :get "/new-game"))
@@ -51,6 +49,4 @@
   (handler (mock/request :get "/dunno")))
 
 (defonce server
-  (future (run-jetty #'handler {:port 3001 :join? false})))
-
-:core
+  (future (run-jetty #'handler {:port 3000 :join? false})))
