@@ -15,22 +15,39 @@
 
 (defn new-game-handler []
   (when (game/new-game!)
-    (response "OK- start guessing at /guess")))
+    (response "OK - start guessing at /guess")))
 
-(response "OK- start guessing at /guess")
+
+(defn valid-login? [username password] ;; placeholder login logic...
+  (and (= username "foo") (= password "bar")))
+
+(defn login-page-handler []
+  (response (slurp "res/login.html")))
+
+(defn login-handler [request]
+  (let [params (:params request)
+        username (get params "username")
+        password (get params "password")]
+    (if (valid-login? username password)
+      (response "Login successful!")
+      (response "Invalid login. Try again."))))
 
 (defn guess-handler [guess]
   (condp = (game/guess-answer guess)
     nil       (-> (response  "You need to supply a guess with /guess?guess=N")
                   (status 400))
-    :game-over (response  "Congratulations! You win!")
-    :too-low   (response  "Too low.")
-    :too-high  (response  "Too high.")))
+    :game-win  (response  "Congratulations! You win!")
+    :game-over (response  "Too bad! You ran out of tries!")
+    :too-low   (response  (str "Too low! " (@game/game-in-progress :remaining-tries) " tries remaining!"))
+    :too-high  (response  (str "Too high! " (@game/game-in-progress :remaining-tries) " tries remaining!"))))
 
-(defroutes game-routes
-  (GET "/new-game" []                 (new-game-handler))
-  (GET "/guess"    [guess :<< as-int] (guess-handler guess))
-  (ANY "*"         []                 (not-found "Sorry, No such URI on this server!")))
+(defroutes site-routes 
+  (GET  "/login" [] (login-page-handler)) 
+  (POST "/login" request (login-handler request))
+
+  (GET  "/new-game" []                 (new-game-handler))
+  (GET  "/guess"    [guess :<< as-int] (guess-handler guess))
+  (ANY  "*"         []                 (not-found "Sorry, No such URI on this server!")))
 
 (defn add-content-type-htmltext-header [handler]
   (fn [request]
@@ -39,7 +56,7 @@
           (ring/header "Content-Type" "text/html")))))
 
 (def handler
-  (-> game-routes
+  (-> site-routes
       (middleware/wrap-defaults middleware/api-defaults)
       (add-content-type-htmltext-header)))
 

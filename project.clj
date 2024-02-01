@@ -27,4 +27,5 @@
                  [ring/ring-mock "0.3.0"]
                  [ring/ring-devel "1.5.0"]]
 
-  :repl-options {:init-ns simple-server.core})
+  :repl-options {:init-ns simple-server.core}
+  :main simple-server.core/server)
