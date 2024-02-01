@@ -4,17 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Page</title>
+    <title>Guess the number!</title>
 	<link href="tokimeki.css" rel="stylesheet" type="text/css" media="all">
 </head>
 <body>
-    <h1>Login</h1>
-    <form action="/login" method="post">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required><br>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required><br>
-        <input type="submit" value="Login">
+    <h1>Guess</h1>
+    <form action="/guess" method="post">
+        <label for="guess">Your guess:</label>
+        <input type="text" id="guess" name="guess" required><br>
+        <input type="submit" value="Guess">
     </form>
 </body>
 </html>

@@ -25,7 +25,10 @@
                  [hiccup "1.0.5"]
 
                  [ring/ring-mock "0.3.0"]
-                 [ring/ring-devel "1.5.0"]]
+                 [ring/ring-devel "1.5.0"]
+                 
+                 ;; For string encoding and decoding
+                 [org.clj-commons/byte-transforms "0.2.1"]]
 
   :repl-options {:init-ns simple-server.core}
   :main simple-server.core/server)
