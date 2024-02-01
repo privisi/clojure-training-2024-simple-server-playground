@@ -1,12 +1,13 @@
 (ns simple-server.core
   (:require [clojure.pprint]
-            [ring.adapter.jetty :refer [run-jetty]]
-            [ring.util.response :as ring :refer [response created redirect not-found status]]
-            [compojure.core :refer [GET POST ANY defroutes]]
+            [clojure.string :as str]
             [compojure.coercions :refer [as-int]]
+            [compojure.core :refer [ANY defroutes GET POST]]
+            [ring.adapter.jetty :refer [run-jetty]]
             [ring.middleware.defaults :as middleware]
-
             [ring.mock.request :as mock]
+            [ring.util.response :as ring :refer [not-found redirect response
+                                                 status]]
             [simple-server.simple-game :as game]))
 
 ;;; Finally, let us truly separate concerns between our "application code"
@@ -18,18 +19,23 @@
     (response "OK - start guessing at /guess")))
 
 
+(defn form-parser [input]
+  (str/lower-case (str/trim input)))
+
+
 (defn valid-login? [username password] ;; placeholder login logic...
   (and (= username "foo") (= password "bar")))
 
 (defn login-page-handler []
   (response (slurp "res/login.html")))
 
+
 (defn login-handler [request]
-  (let [params (:params request)
+  (let [params (:form-params request)
         username (get params "username")
         password (get params "password")]
     (if (valid-login? username password)
-      (response "Login successful!")
+      (redirect "/new-game")
       (response "Invalid login. Try again."))))
 
 (defn guess-handler [guess]
