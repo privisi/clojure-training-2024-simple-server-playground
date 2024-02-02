@@ -37,6 +37,7 @@
 (defn valid-login? [token password] ;; placeholder login logic...
   (or (and (= token "foo") (= password "bar"))
       (and (= token "admin") (= password "123"))
+      (and (= token "user") (= password "pass"))
       (and (= token "egg") (= password "man"))
       (and (= token "test") (= password "test"))))
 

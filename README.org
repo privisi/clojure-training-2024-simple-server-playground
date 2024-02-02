@@ -11,11 +11,29 @@ Based on https://github.com/alain-picard/simple-server-playground
 lein repl  
   #+end_src
 
-Should start a server listening on [[http://localhost:3001]]
+Should start a server listening on [[http://localhost:3000]]
 
-By moving from git tag to git tag, you should see the evolution
-of the code.
 
-** Tags
 
- - starting-point
+* HTML Guessing Game
+
+A small guessing game that gives 5 tries to guess a number from 1-10.
+
+*Important URIs:
+Login page: [[http://localhost:3000/login]] 
+At present, valid username and passwords are:
+user    pass
+foo     bar
+admin   123
+egg     man
+test    test
+Sets a cookie in your browser that expires in 1 hour.
+
+New game: [[http://localhost:3000/new-game]] 
+Lets the server start a new game.
+It associates the game with your internal user ID, so multiple sessions at once are possible.
+
+Guess: [[http://localhost:3000/guess?guess=N]]
+The server will tell you if you guessed too high, too low, or if you got it right.
+Replace N with a number from 1 to 10 (eg. ?guess=3) and go to that URL to make the guess.
+
