@@ -1,30 +1,48 @@
-(ns simple-server.simple-game)
+(ns simple-server.simple-game 
+  (:require simple-server.core))
 
-(def game-in-progress (atom nil))
+(def games-in-progress (atom nil))
+(defn user-hash [request]
+  (simple-server.core/get-session-cookie request))
 
-(defn new-game! []
-  ;; Make our new game:
-  (reset! game-in-progress {:secret-num (+ 1 (rand-int 10)) :remaining-tries 6})
+(defn new-game! [request]
+  ;; Make our new game: 
+  (println (user-hash request))
+  (swap! games-in-progress assoc (user-hash request) {:secret-num (+ 1 (rand-int 10)) :remaining-tries 6})
+  @games-in-progress
   :ok)
 
-(defn reset-game []
-  (reset! game-in-progress {:secret-num (+ 1 (rand-int 10)) :remaining-tries 6}))
 
-(defn guess-answer [guess]
-  (cond
-    (nil? guess) nil
+(defn reset-game [user-hashcode]
+  ((swap! games-in-progress dissoc user-hashcode)))
+(defn failed-attempt [user-code]
+  (swap! games-in-progress update-in user-code :remaining-tries dec))
+(defn get-remaining-tries [user-code]
+  (@games-in-progress user-code :remaining-tries))
+(defn get-secret-num [user-code]
+  (@games-in-progress user-code :secret-num))
 
-    (= guess (@game-in-progress :secret-num))
-    (and reset-game :game-win)
 
-    (= 0 (@game-in-progress :remaining-tries))
-    (and reset-game :game-over)
-    
-    (< guess (@game-in-progress :secret-num))
-    (and (swap! game-in-progress update :remaining-tries dec)
-         :too-low)
+(defn guess-answer [guess request]
+@games-in-progress
+  (let [user (user-hash request)]
+    (println user user)
+    (println ":secret-num " (@games-in-progress user :secret-num))
+    (println ":remaining-tries " (@games-in-progress user :remaining-tries))
+    (cond
+      (nil? guess) nil
 
-    (> guess (@game-in-progress :secret-num))
-    (and (swap! game-in-progress update :remaining-tries dec) 
-         :too-high)))
+      (= guess (get-secret-num user))
+      (and (reset-game user) :game-win)
+
+      (= 0 (get-remaining-tries user))
+      (and (reset-game user) :game-over)
+
+      (< guess (get-secret-num user))
+      (and (failed-attempt user)
+           :too-low)
+
+      (> guess (get-secret-num user))
+      (and (failed-attempt user)
+           :too-high))))
 

@@ -1,6 +1,6 @@
 (ns simple-server.core
   (:require [clojure.pprint]
-            ;[clojure.string :as str]
+            [clojure.string :as str]
             [compojure.coercions   :refer [as-int]]
             [compojure.core        :refer [ANY defroutes GET POST]]
             [ring.adapter.jetty    :refer [run-jetty]]
@@ -11,26 +11,34 @@
             [ring.util.response       :as ring 
                                    :refer [not-found redirect response status]]
             [simple-server.simple-game :as game]
-            [byte-transforms       :refer [encode decode decompress compress]]))
-
-;;; Finally, let us truly separate concerns between our "application code"
-;;; and our "http code".  Our game now lives in its own namespace, and
-;;; is fully testable independent of our "presentation layer".
-
-(defn new-game-handler [username]
-  (when (game/new-game!)
-    (response (str "OK - start guessing at /guess/" username "?guess=N"))))
+            [byte-transforms           :as transforms]))
 
 
-;; (defn form-sanitizer [input]
-;;   (str/lower-case (str/trim input)))
 
 
-(defn valid-login? [username password] ;; placeholder login logic...
-  (or (and (= username "foo") (= password "bar"))
-      (and (= username "admin") (= password "123"))
-      (and (= username "egg") (= password "man"))
-      (and (= username "test") (= password "test"))))
+
+(defn set-session-cookie [response username]
+  (ring/set-cookie response "token" (transforms/hash username :crc32) {:max-age 3600})) ; Set cookie with a maximum age of 1 hour
+
+(defn get-session-cookie [request]
+  (println (get-in request [:cookies "token" :value]))
+  (get-in request [:cookies "token" :value]))
+
+
+(defn new-game-handler [request] 
+    (when (game/new-game! (get-session-cookie request))
+      (response (str "OK - start guessing at /guess/?guess=N"))))
+
+
+(defn form-sanitizer [input]
+  (str/lower-case (str/trim input)))
+
+
+(defn valid-login? [token password] ;; placeholder login logic...
+  (or (and (= token "foo") (= password "bar"))
+      (and (= token "admin") (= password "123"))
+      (and (= token "egg") (= password "man"))
+      (and (= token "test") (= password "test"))))
 
 ;; tried to combine these functions but the login page is very fragile
 (defn login-page-handler []
@@ -38,45 +46,39 @@
 ;; (defn guess-page-handler []
 ;;   (response (slurp "res/guess.html")))
 
-(defn set-login-cookie [response username]
-  (ring/set-cookie response "username" username {:max-age 3600})) ; Set cookie with a maximum age of 1 hour
 
-(defn get-username-from-cookie [request]
-  (get-in request [:cookies "username" :value]))
 
-(defn user-hash [username]
-  )
 
 (defn login-handler [request]
   (let [params (:form-params request)
-        username (get params "username")
+        username (form-sanitizer (get params "username"))
         password (get params "password")]
     (println (str username password))
     (if (valid-login? username password)
       (-> (redirect "/new-game")
-          (set-login-cookie username)))))
-      ;; (redirect (str "/new-game/" username))
-      ;; (response "Invalid login. Try again."))))
+          (set-session-cookie username))
+      ;; (redirect (str "/new-game/" token))
+      (response "Invalid login. Try again."))))
 
-(defn guess-handler [username guess]
-  (if (= username nil)
-    (redirect "/login")
-    (condp = (game/guess-answer guess)
+(defn guess-handler [guess request] 
+    (condp = (game/guess-answer guess request)
       nil       (-> (response  "You need to supply a guess with /guess?guess=N")
                     (status 400))
-      :game-win  (response  (str "Congratulations " username "! You win!"))
+      :game-win  (response  (str "Congratulations! You win!"))
       :game-over (response  "Too bad! You ran out of tries!")
-      :too-low   (response  (str "Too low! " (@game/game-in-progress :remaining-tries) " tries remaining!"))
-      :too-high  (response  (str "Too high! " (@game/game-in-progress :remaining-tries) " tries remaining!")))))
+      :too-low   (response  (str "Too low! " (@game/games-in-progress :remaining-tries) " tries remaining!"))
+      :too-high  (response  (str "Too high! " (@game/games-in-progress :remaining-tries) " tries remaining!"))))
 
 (defroutes site-routes 
   (GET  "/login"             []                          (login-page-handler)) 
   (POST "/login"             request                     (login-handler request))
 
-  (GET  "/new-game:username" []                  (new-game-handler ))
-  ;; (GET  "/guess:username"    [username]                  (guess-page-handler username))
-  (GET  "/guess:username"    [guess :<< as-int] (guess-handler guess))
-  (ANY  "*"                  []                          (not-found "Sorry, No such URI on this server!")))
+  (GET  "/new-game"          request                     (new-game-handler (str request)))
+  ;; (GET  "/guess:token"    [token]                     (guess-page-handler token))
+  (GET  "/guess"             [guess :<< as-int request]  (guess-handler guess (str request)))
+  (ANY  "*"                  []                          (not-found (str "Sorry, no such URI on this server!\n\n
+                                                                         Navigate to /new-game to start the guessing game.\n
+                                                                         If you're in the middle of a game, go to /guess/?guess=N instead."))))
 
 (defn add-content-type-htmltext-header [handler]
   (fn [request]
@@ -84,12 +86,14 @@
       (-> response
           (ring/header "Content-Type" "text/html")))))
 
-;; doesn't work right now
-(defn redirect-to-login-middleware [handler]
+
+(defn redirect-to-login-middleware
+  "If a login cookie (at present, can be anything) is not found, redirects user to the login page."
+  [handler]
   (fn [request]
-    (let [username (get-username-from-cookie request)]
+    (let [token (get-session-cookie request)]
     (clojure.pprint/pprint request)
-      (if (nil? username)
+      (if (nil? token)
         (-> (handler (assoc request :uri "/login"))  ; Redirect to /login
             (ring/header "Content-Type" "text/html"))
         (handler request)))))
