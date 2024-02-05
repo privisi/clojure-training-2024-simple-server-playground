@@ -9,6 +9,11 @@
                  [ring/ring-core "1.6.3"]
                  [ring/ring-jetty-adapter "1.6.3"]
 
+                  ;; JDBC
+                 [org.postgresql/postgresql "42.7.1"]
+                 [org.clojure/java.jdbc "0.7.11"]
+                 [org.xerial/sqlite-jdbc "3.30.1"]
+
                  ;; The libs we saw previously in training
                  [clj-time "0.15.2"]
                  [superstring "3.0.0"]

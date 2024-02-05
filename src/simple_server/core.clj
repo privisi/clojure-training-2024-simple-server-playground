@@ -8,11 +8,16 @@
             [ring.middleware.cookies  :as cookies]
             [ring.middleware.multipart-params :as multi]
             [ring.mock.request        :as mock]
-            [ring.util.response       :as ring 
-                                   :refer [not-found redirect response status]]
+            [ring.util.response       :as ring
+             :refer [not-found redirect response status]]
             [simple-server.simple-game :as game]
-            [byte-transforms           :as transforms]))
+            [byte-transforms           :as transforms]
 
+            [camel-snake-kebab.core :as csk]
+            [cheshire.core :as json]
+            [clj-http.client :as client]
+            [medley.core :as m]
+            [clojure.java.jdbc :as jdbc]))
 
 
 
@@ -20,13 +25,13 @@
 (defn set-session-cookie [response username]
   (ring/set-cookie response "token" (transforms/hash username :crc32) {:max-age 3600})) ; Set cookie with a maximum age of 1 hour
 
-(defn get-session-cookie [request] 
+(defn get-session-cookie [request]
   (get-in request [:cookies "token" :value]))
 
 
-(defn new-game-handler [request] 
-    (when (game/new-game! (get-session-cookie request))
-      (response (str "OK - start guessing at /guess/?guess=N"))))
+(defn new-game-handler [request]
+  (when (game/new-game! (get-session-cookie request))
+    (response (str "OK - start guessing at /guess/?guess=N"))))
 
 
 (defn form-sanitizer [input]
@@ -42,7 +47,7 @@
 
 ;; tried to combine these functions but the login page is very fragile
 (defn login-page-handler []
-  (response (slurp "res/login.html"))) 
+  (response (slurp "res/login.html")))
 ;; (defn guess-page-handler []
 ;;   (response (slurp "res/guess.html")))
 
@@ -52,24 +57,24 @@
 (defn login-handler [request]
   (let [params (:form-params request)
         username (form-sanitizer (get params "username"))
-        password (get params "password")] 
+        password (get params "password")]
     (if (valid-login? username password)
       (-> (redirect "/new-game")
           (set-session-cookie username))
       ;; (redirect (str "/new-game/" token))
       (response "Invalid login. Try again."))))
 
-(defn guess-handler [guess user-hash] 
-    (condp = (game/guess-answer guess user-hash)
-      nil       (-> (response  "You need to supply a guess with /guess?guess=N")
-                    (status 400))
-      :game-win  (response  (str "Congratulations! You win!"))
-      :game-over (response  "Too bad! You ran out of tries!")
-      :too-low   (response  (str "Too low! " (get-in @game/games-in-progress [user-hash :remaining-tries]) " tries remaining!"))
-      :too-high  (response  (str "Too high! " (get-in @game/games-in-progress [user-hash :remaining-tries]) " tries remaining!"))))
+(defn guess-handler [guess user-hash]
+  (condp = (game/guess-answer guess user-hash)
+    nil       (-> (response  "You need to supply a guess with /guess?guess=N")
+                  (status 400))
+    :game-win  (response  (str "Congratulations! You win!"))
+    :game-over (response  "Too bad! You ran out of tries!")
+    :too-low   (response  (str "Too low! "  (game/get-remaining-tries user-hash) " tries remaining!"))
+    :too-high  (response  (str "Too high! " (game/get-remaining-tries user-hash) " tries remaining!"))))
 
-(defroutes site-routes 
-  (GET  "/login"             []                          (login-page-handler)) 
+(defroutes site-routes
+  (GET  "/login"             []                          (login-page-handler))
   (POST "/login"             request                     (login-handler request))
 
   (GET  "/new-game"          request                     (new-game-handler request))
@@ -91,7 +96,7 @@
   [handler]
   (fn [request]
     (let [token (get-session-cookie request)]
-    (clojure.pprint/pprint request)
+      (clojure.pprint/pprint request)
       (if (nil? token)
         (-> (handler (assoc request :uri "/login"))  ; Redirect to /login
             (ring/header "Content-Type" "text/html"))
@@ -99,7 +104,7 @@
 
 
 (def handler
-  (-> site-routes 
+  (-> site-routes
       (redirect-to-login-middleware)
       (middleware/wrap-defaults middleware/api-defaults)
       (add-content-type-htmltext-header)
@@ -111,5 +116,6 @@
   (handler (mock/request :get "/guess?guess=3"))
   (handler (mock/request :get "/dunno")))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defonce server
   (future (run-jetty #'handler {:port 3000 :join? false})))
