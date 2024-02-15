@@ -47,7 +47,7 @@
 
 ;; tried to combine these functions but the login page is very fragile
 (defn login-page-handler []
-  (response (slurp "res/login.html")))
+  (response (slurp "resources/public/login.html")))
 ;; (defn guess-page-handler []
 ;;   (response (slurp "res/guess.html")))
 

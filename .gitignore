@@ -15,3 +15,17 @@ pom.xml.asc
 .lsp
 .calva
 src/simple_server/core-old.clj
+/lib/
+/classes/
+/out/
+/target/
+.lein-deps-sum
+.lein-repl-history
+.lein-plugins/
+.repl
+.nrepl-port
+.cpcache/
+.rebel_readline_history
+resources/public/cljs-out/
+.clj-kondo/.cache
+

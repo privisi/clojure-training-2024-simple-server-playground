@@ -26,47 +26,21 @@
                              WHERE user_id = ?" (Long/parseLong user-code)]))
 
 (defn get-remaining-tries [user-code]
-  (first (jdbc/query db-conn ["SELECT tries_left
+  (let [result (jdbc/query db-conn ["SELECT tries_left
                                     FROM games_in_progress
-                                    WHERE user_id = ?" (Long/parseLong user-code)]
-                     {:result-set-fn :one})))
+                                    WHERE user_id = ?" user-code])]
+    (:tries_left result)))
 
-(defn get-secret-num [user-code]
-  (first (jdbc/query db-conn ["SELECT secret_num
+(defn get-secret-num [user-code] 
+  (jdbc/query db-conn ["SELECT secret_num
                                     FROM games_in_progress
-                                    WHERE user_id = ?" (Long/parseLong user-code)]
-                     {:result-set-fn :one})))
+                                    WHERE user_id = ?" user-code]))
 
    ;; Make our new game:  
 (defn new-game! [user-code]
   (reset-game user-code)   ; Delete any existing game for the user before starting a new one
   (insert-player user-code ; Insert a new game with user’s hash, a random secret number, and initial tries count
                  (+ 1 (rand-int 10))))
-
-
-
-
-  ;;
-  ;;;; Atom version, disused since we're working with a database now ;;;;
-  ;;
-  ;; (defonce games-in-progress (atom nil))
-  ;;
-  ;; (defn new-game! [user-code]
-  ;;   ;; Make our new game:  
-  ;;   (swap! games-in-progress assoc user-code {:secret-num (+ 1 (rand-int 10)) :remaining-tries 6})
-  ;;   @games-in-progress
-  ;;   :ok)
-  ;;
-  ;; (defn reset-game [user-code]
-  ;;   (swap! games-in-progress dissoc user-code))
-  ;; (defn failed-attempt [user-code]
-  ;;   (swap! games-in-progress update-in user-code :remaining-tries dec))
-  ;; (defn get-remaining-tries [user-code]
-  ;;   (get-in @games-in-progress [user-code :remaining-tries]))
-  ;; (defn get-secret-num [user-code]
-  ;;   (get-in @games-in-progress [user-code :secret-num]))
-  ;;
-
 
 
 (defn guess-answer [guess user-hash]

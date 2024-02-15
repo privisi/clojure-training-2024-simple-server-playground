@@ -5,6 +5,11 @@
             :url "https://www.eclipse.org/legal/epl-2.0/"}
 
   :dependencies [[org.clojure/clojure "1.10.0"]
+                 [org.clojure/clojurescript "1.11.4"]
+                 [cljsjs/react "17.0.2-0"]
+                 [cljsjs/react-dom "17.0.2-0"]
+                 [reagent "1.1.1"]
+
                  ;; This is to run our basic HTTP server
                  [ring/ring-core "1.6.3"]
                  [ring/ring-jetty-adapter "1.6.3"]
@@ -35,5 +40,20 @@
                  ;; For string encoding and decoding
                  [org.clj-commons/byte-transforms "0.2.1"]]
 
+
   :repl-options {:init-ns simple-server.core}
   :main simple-server.core/server)
+
+  :source-paths ["src"]
+
+  :aliases {"fig:build" ["run" "-m" "figwheel.main" "-b" "dev" "-r"]
+            "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
+            "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "simple-server.test-runner"]}
+
+  :profiles {:dev {:dependencies [[com.bhauman/figwheel-main "0.2.17"]
+                                  [org.slf4j/slf4j-nop "1.7.30"]]
+                   
+                   :resource-paths ["target"]
+                   ;; need to add the compiled assets to the :clean-targets
+                   :clean-targets ^{:protect false} ["target"]}})
+
