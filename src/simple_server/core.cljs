@@ -1,39 +1,51 @@
 (ns ^:figwheel-hooks simple-server.core
-  (:require
-   [goog.dom :as gdom]
-   [reagent.core :as reagent :refer [atom]]
-   [reagent.dom :as rdom]))
+  (:require [clojure.string :as str]
+            [ajax.core :refer [GET] [POST]]
+            [goog.dom :as gdom]
+            [goog.events :as events]
+            [goog.history.EventType :as HistoryEventType]
+            [reagent.core :as r :refer [atom]]
+            [reagent.dom :as rdom]
+            [reitit.core :as reitit])
+  (:import goog.History))
 
-(println "This text is printed from src/simple_server/core.cljs. Go ahead and edit it and see reloading in action.")
 
-(defn multiply [a b] (* a b))
+(def guess-val      (r/atom 5))
+(defn slider-on-change-handler [js-event]
+  (reset! guess-val (-> js-event .-target .-value)))
 
-;; define your app data so that it doesn't get over-written on reload
-(defonce app-state (atom {:text "Hello world!"}))
+(def guess-text "Guess the number I'm thinking of!")
+
+(defonce app-state (atom {:text guess-text}))
 
 (defn get-app-element []
   (gdom/getElement "app"))
 
-(defn hello-world []
+(defn guess-page []
   [:div
-   [:h1 (:text @app-state)]
-   [:h3 "Edit this in src/simple_server/core.cljs and watch it change!"]])
+   [:h1 "Guessing Game"]
+   [:h3 (:text @app-state)]
+   [:div {:class "slidecontainer"}
+    [:input {:type  "range"
+             :id    "MyRange1"
+             :min   1
+             :max   10
+             :value 5
+             :on-change slider-on-change-handler}]]
+   [:h3 @guess-val]])
 
 (defn mount [el]
-  (rdom/render [hello-world] el))
+  (rdom/render [guess-page] el))
 
 (defn mount-app-element []
   (when-let [el (get-app-element)]
     (mount el)))
 
 ;; conditionally start your application based on the presence of an "app" element
-;; this is particularly helpful for testing this ns without launching the app
 (mount-app-element)
 
 ;; specify reload hook with ^:after-load metadata
 (defn ^:after-load on-reload []
   (mount-app-element)
-  ;; optionally touch your app-state to force rerendering depending on
-  ;; your application
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
 )
