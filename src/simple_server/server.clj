@@ -1,9 +1,9 @@
-(ns reagent-2024.app-server
+(ns simple-server.server
   (:require
    [clojure.pprint]
    [clojure.string :as str]
    [compojure.coercions   :refer [as-int]]
-   [compojure.core        :refer [ANY defroutes GET POST]] 
+   [compojure.core        :refer [ANY defroutes GET POST]]
    [compojure.route           :as route]
    [ring.adapter.jetty    :refer [run-jetty]]
    [ring.middleware.defaults  :as middleware]
@@ -13,20 +13,9 @@
    [ring.util.response        :as ring
     :refer [not-found redirect response status]]
    [simple-server.simple-game :as game]
-   [byte-transforms           :as transforms]
-   [hiccup.page            :refer [html5 include-js include-css]]))
+   [simple-server.db          :as db]
+   [byte-transforms           :as transforms]))
 
-(defn index-html []
-  (html5
-   [:head
-    [:meta {:charset "UTF-8"}]
-    [:meta {:name "viewport"
-            :content "width=device-width, initial-scale=1"}]
-    (include-css "/css/style.css")]
-   [:body
-    [:h2 "Text being served by the app-server Ring handler."]
-    [:div {:id "app"}]
-    (include-js "/cljs-out/dev-main.js")]))
 
 
 ;; (defn random-api []
@@ -35,6 +24,7 @@
 ;;    :body (pr-str {:lucky-number (rand-int 1000)
 ;;                   :a-set #{1 "foo" :baz [::a ::b]}})
 ;;    :headers {"Content-Type" "application/edn"}})
+
 
 
 (defn set-session-cookie [response username]
@@ -49,10 +39,6 @@
     (response (str "OK - start guessing at /guess/?guess=N"))))
 
 
-(defn form-sanitizer [input]
-  (str/lower-case (str/trim input)))
-
-
 (defn valid-login? [token password] ;; placeholder login logic...
   (or (and (= token "foo") (= password "bar"))
       (and (= token "admin") (= password "123"))
@@ -60,24 +46,31 @@
       (and (= token "egg") (= password "man"))
       (and (= token "test") (= password "test"))))
 
-;; tried to combine these functions but the login page is very fragile
-(defn login-page-handler []
-  (response (slurp "resources/public/login.html")))
-;; (defn guess-page-handler []
-;;   (response (slurp "res/guess.html")))
+;; ;; tried to combine these functions but the login page is very fragile
+;; (defn login-page-handler []
+;;   (response (slurp "resources/public/login.html")))
+;; ;; (defn guess-page-handler []
+;; ;;   (response (slurp "res/guess.html")))
+
+
+(defn validate-user-credentials [username password]
+  (let [user-id-map (first (db/get-user-id username)) 
+        user-id (:user_id user-id-map)                 
+        password-map (first (db/get-password user-id))
+        stored-password (:password password-map)]
+    (= password stored-password)))
 
 
 
-
-(defn login-handler [request]
-  (let [params (:form-params request)
-        username (form-sanitizer (get params "username"))
-        password (get params "password")]
-    (if (valid-login? username password)
-      (-> (redirect "/new-game")
-          (set-session-cookie username))
-      ;; (redirect (str "/new-game/" token))
-      (response "Invalid login. Try again."))))
+;; (defn login-handler [request]
+;;   (let [params (:form-params request)
+;;         username (form-sanitizer (get params "username"))
+;;         password (get params "password")]
+;;     (if (valid-login? username password)
+;;       (-> (redirect "/new-game")
+;;           (set-session-cookie username))
+;;       ;; (redirect (str "/new-game/" token))
+;;       (response "Invalid login. Try again."))))
 
 (defn guess-handler [guess user-hash]
   (condp = (game/guess-answer guess user-hash)
@@ -85,14 +78,14 @@
                   (status 400))
     :game-win  (response  (str "Congratulations! You win!"))
     :game-over (response  "Too bad! You ran out of tries!")
-    :too-low   (response  (str "Too low! "  (game/get-remaining-tries user-hash) " tries remaining!"))
-    :too-high  (response  (str "Too high! " (game/get-remaining-tries user-hash) " tries remaining!"))))
+    :too-low   (response  (str "Too low! "  (db/get-remaining-tries user-hash) " tries remaining!"))
+    :too-high  (response  (str "Too high! " (db/get-remaining-tries user-hash) " tries remaining!"))))
 
 
 (defroutes site-routes 
  
-  (GET  "/login"             []                          (login-page-handler))
-  (POST "/login"             request                     (login-handler request))
+  ;; (GET  "/login"             []                          (login-page-handler))
+  ;; (POST "/login"             request                     (login-handler request))
 
   (GET  "/new-game"          request                     (new-game-handler request))
   ;; (GET  "/guess:token"    [token]                     (guess-page-handler token))
@@ -133,7 +126,7 @@
   (handler (mock/request :get "/guess?guess=3"))
   (handler (mock/request :get "/dunno")))
 
-;; #_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
-;; (defonce server
-;;   (future (run-jetty #'handler {:port 3000 :join? false})))
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
+(defonce server
+  (future (run-jetty #'handler {:port 3000 :join? false})))
 

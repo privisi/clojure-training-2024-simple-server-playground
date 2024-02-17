@@ -12,14 +12,25 @@
                  [cljsjs/react-dom "17.0.2-0"]
                  [reagent "1.1.1"]
                  [org.clojure/core.async "1.6.681"]
-                 
+
+                      ;; JDBC
+                 [org.postgresql/postgresql "42.7.1"]
+                 [org.clojure/java.jdbc "0.7.11"]
+                 [org.xerial/sqlite-jdbc "3.30.1"]
+
                  [cljs-ajax "0.8.4"]
                  [cljs-http "0.1.46"]
                  [compojure "1.6.1"]
+                 [ring/ring-mock "0.3.0"]
+                 [ring/ring-devel "1.5.0"]
+
                  [ring/ring-defaults "0.3.2"]
                  [hiccup "1.0.5"]
-                 [metosin/reitit "0.5.18"]]
-
+                 [metosin/reitit "0.5.18"]
+                 
+                 ;; For string encoding and decoding
+                 [org.clj-commons/byte-transforms "0.2.1"]]
+  
   :source-paths ["src"]
 
   :aliases {"fig:build" ["run" "-m" "figwheel.main" "-b" "dev" "-r"]
@@ -31,5 +42,8 @@
 
                    :resource-paths ["target"]
                    ;; need to add the compiled assets to the :clean-targets
-                   :clean-targets ^{:protect false} ["target"]}})
+                   :clean-targets ^{:protect false} ["target"]}}
 
+
+  :repl-options {:init-ns simple-server.core}
+  :main simple-server.server/server)
