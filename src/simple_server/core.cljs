@@ -6,7 +6,7 @@
             [reagent.core :as r :refer [atom]]
             [reagent.dom :as rdom]
             [reitit.core :as reitit]))
-
+(def backend-url "http://localhost:3000")
 
 (def guess-val      (r/atom 5))
 
@@ -34,7 +34,7 @@
 ;; Frontend event handler to submit the login form
 (defn submit-login []
   (let [{:keys [username password]} @app-state]
-    (POST "/api/login"
+    (POST (str backend-url "/api/login")
           {:params {:username (form-sanitizer username) :password password}
            :handler (fn [response]
                       (swap! app-state merge
@@ -46,7 +46,7 @@
 ;; Frontend event handler to submit guesses to the backend
 (defn submit-guess []
   (let [guess (@app-state :guess)]
-    (POST "/api/guess"
+    (POST (str backend-url "/api/guess")
           {:params {:guess guess}
            :handler (fn [response]
                       (swap! app-state assoc :message (str "Server says: " response)))
@@ -92,18 +92,6 @@
              :on-change slider-on-change-handler}]]
    [:h3 @guess-val]])
 
-;; (defn mount [el]
-;;   (rdom/render [guess-page] el))
-
-;; (defn mount-app-element []
-;;   (when-let [el (get-app-element)]
-;;     (mount el)))
-
-
-
-;; ;; conditionally start your application based on the presence of an "app" element
-;; (mount-app-element)
-
 ;; Conditional rendering based on authentication
 (defn app-root []
   (if (@app-state :user-authenticated)
@@ -119,9 +107,3 @@
 
 ;; Initial mounting of the app
 (mount-app)
-
-;; ;; specify reload hook with ^:after-load metadata
-;; (defn ^:after-load on-reload []
-;;   (mount-app-element)
-;;   ;; (swap! app-state update-in [:__figwheel_counter] inc)
-;; )

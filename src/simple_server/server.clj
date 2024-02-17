@@ -3,20 +3,19 @@
    [clojure.pprint]
    [clojure.string :as str]
    [compojure.coercions   :refer [as-int]]
-   [compojure.core        :refer [ANY defroutes GET POST]]
+   [compojure.core        :refer [ANY defroutes GET POST OPTIONS]]
    [compojure.route           :as route]
    [ring.adapter.jetty    :refer [run-jetty]]
    [ring.middleware.defaults  :as middleware]
    [ring.middleware.cookies   :as cookies]
    [ring.middleware.multipart-params :as multi]
+   [ring.middleware.cors :refer [wrap-cors]]
    [ring.mock.request         :as mock]
    [ring.util.response        :as ring
     :refer [not-found redirect response status]]
    [simple-server.simple-game :as game]
    [simple-server.db          :as db]
    [byte-transforms           :as transforms]))
-
-
 
 ;; (defn random-api []
 ;;   (println "I've been called!")
@@ -25,10 +24,9 @@
 ;;                   :a-set #{1 "foo" :baz [::a ::b]}})
 ;;    :headers {"Content-Type" "application/edn"}})
 
-
-
-(defn set-session-cookie [response username]
-  (ring/set-cookie response "token" (transforms/hash username :crc32) {:max-age 3600})) ; Set cookie with a maximum age of 1 hour
+(defn set-session-cookie [response user-id]
+  (let [cookie-value (transforms/hash (str user-id) :crc32)] ; Generate a simple cookie value based on the user ID
+    (ring/set-cookie response "token" cookie-value {:max-age 3600}))) ; Set cookie with a maximum age of 1 hour
 
 (defn get-session-cookie [request]
   (get-in request [:cookies "token" :value]))
@@ -62,15 +60,26 @@
 
 
 
-;; (defn login-handler [request]
-;;   (let [params (:form-params request)
-;;         username (form-sanitizer (get params "username"))
-;;         password (get params "password")]
-;;     (if (valid-login? username password)
-;;       (-> (redirect "/new-game")
-;;           (set-session-cookie username))
-;;       ;; (redirect (str "/new-game/" token))
-;;       (response "Invalid login. Try again."))))
+(defn login-api-handler [request]
+  (let [params (get request :params)
+        username (:username params)
+        password (:password params)]
+    (if (validate-user-credentials username password)
+      (let [user-id (-> (first (db/get-user-id username))
+                        :user_id)]
+        (-> (response {:status "success", :message "Login successful"})
+            (set-session-cookie user-id)
+            (ring/content-type "application/json")))
+      (ring/response {:status "error", :message "Invalid login. Try again."}))))
+
+(defn guess-api-handler [request]
+  (let [params (get request :params)
+        guess (Integer/parseInt (:guess params))
+        token (get-session-cookie request)]
+    (if (nil? token)
+      (ring/response {:status "error", :message "Unauthorized"})
+      (let [result (game/guess-answer guess token)]
+        (response {:status "success", :message (name result), :tries-left (db/get-remaining-tries token)})))))
 
 (defn guess-handler [guess user-hash]
   (condp = (game/guess-answer guess user-hash)
@@ -82,10 +91,20 @@
     :too-high  (response  (str "Too high! " (db/get-remaining-tries user-hash) " tries remaining!"))))
 
 
-(defroutes site-routes 
- 
+
+(defroutes site-routes
+
   ;; (GET  "/login"             []                          (login-page-handler))
   ;; (POST "/login"             request                     (login-handler request))
+  (POST "/api/login"         request                     (login-api-handler request))
+  (POST "/api/guess"         request                     (guess-api-handler request))
+  ;; (OPTIONS "*"               []                          {}) ;; handle preflight requests
+  (OPTIONS "*" [] (fn [request]
+                    (-> (response "")
+                        (ring/header "Access-Control-Allow-Origin" "http://localhost:9500")
+                        (ring/header "Access-Control-Allow-Methods" "POST, GET, OPTIONS")
+                        (ring/header "Access-Control-Allow-Headers", "content-type, x-requested-with")
+                        (ring/header "Access-Control-Allow-Credentials", "true"))))
 
   (GET  "/new-game"          request                     (new-game-handler request))
   ;; (GET  "/guess:token"    [token]                     (guess-page-handler token))
@@ -115,8 +134,13 @@
 
 (def handler
   (-> site-routes
-      (redirect-to-login-middleware)
+      (wrap-cors :access-control-allow-origin ["http://localhost:9500"] ;; replace with your frontend domain/URL
+                 :access-control-allow-credentials true
+                 :access-control-allow-methods [:get :post :put :delete :options]
+                 :access-control-allow-headers ["Content-Type" "Authorization"]
+                 :access-control-max-age 3600)
       (middleware/wrap-defaults middleware/api-defaults)
+      (redirect-to-login-middleware)
       (add-content-type-htmltext-header)
       (multi/wrap-multipart-params)
       (cookies/wrap-cookies)))

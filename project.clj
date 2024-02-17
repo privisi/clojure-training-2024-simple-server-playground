@@ -23,6 +23,7 @@
                  [compojure "1.6.1"]
                  [ring/ring-mock "0.3.0"]
                  [ring/ring-devel "1.5.0"]
+                 [ring-cors "0.1.13"]
 
                  [ring/ring-defaults "0.3.2"]
                  [hiccup "1.0.5"]
