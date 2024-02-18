@@ -64,8 +64,8 @@
     (go
       (let [response (<! (http/post (str site-url "/api/login")
                                     {:form-params {:username (form-sanitizer username) :password password}}))]
-        (def r response)
-        (println response)
+        ;; (def r response)
+        ;; (println response)
         
         (if (= "success" (get-in response [:body :status]))
           (>! event-channel {:type :login-success})
@@ -77,9 +77,11 @@
     (go
       (let [response (<! (http/post (str site-url "/api/guess")
                                     {:form-params {:guess guess}}))]
+        (println response)
         (if (= "success" (get-in response [:body :status]))
           (>! event-channel {:type :guess-response :message (:body response)})
-          (>! event-channel {:type :guess-error}))))))
+          (>! event-channel {:type :guess-error}))
+        ))))
 
 
 ;; Login component
@@ -93,8 +95,7 @@
             :placeholder "Password"
             :on-change #(update-credentials :password (-> % .-target .-value))}]
    [:button {:on-click submit-login} "Login"]
-   [:div.message (@app-state :message)]
-   [:h3  (str @app-state)]])
+   [:div.message (@app-state :message)]])
 
 
 
@@ -112,7 +113,7 @@
 (defn guess-page []
   [:div
    [:h1 "Guessing Game"]
-   [:h3 (:text @app-state)]
+   [:h3 (:message @app-state)]
    [:div {:class "slidecontainer"}
     [:input {:type  "range"
              :id    "MyRange1"

@@ -9,9 +9,8 @@
 
 
 (defn guess-answer [guess user-num]
-    ;; @games-in-progress
   (println "Guess answer function got: " guess user-num)
-  (let [user            (Integer/parseInt user-num)
+  (let [user            (int user-num)
         secret-num      (:secret_num (first (db/get-secret-num user)))
         remaining-tries (:tries_left (first (db/get-remaining-tries user)))]
     (println "secret num: " secret-num "remaining tries: " remaining-tries)

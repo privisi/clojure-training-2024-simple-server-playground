@@ -67,38 +67,37 @@
    :headers {"Content-Type" "application/edn"}})
 
 (defn login-api-handler [request]
-  (println request)
+  ;; (println request)
   (let [params (get request :params)
         username (:username params)
         password (:password params)]
   (println "got params:" username password ", validating: " (validate-user-credentials username password))
     (if (validate-user-credentials username password)
       (let [user-id (-> (first (db/get-user-id username))
-                        :user_id)]
-        (response {:status "success", :message "Login successful222"})
+                        :user_id)] 
+        (db/create-tables-if-not-existing)
+        (game/new-game! user-id)
         (-> (response {:status "success", :message "Login successful"})
             (set-session-cookie user-id)))
       (response {:status "error", :message "Invalid login. Try again."}))))
 
 (defn guess-api-handler [request]
-  (println request)
+  ;; (println request)
   (let [params (get request :params)
-        guess (Integer/parseInt (:guess params))
-        token  (get-session-cookie request)]
+        guess  (Integer/parseInt (:guess params))
+        token  (Integer/parseInt (get-session-cookie request))]
     (println "got params: " guess token)
     (if (nil? token)
       (response {:status "error", :message "Unauthorized"})
       (let [result (game/guess-answer guess token)]
-        (response {:status "success", :message (name result), :tries-left (db/get-remaining-tries token)})))))
+        (case result
+          :game-win  (response {:status "success", :message "Congratulations! You win!"})
+          :game-over (response {:status "success", :message "Too bad! You ran out of tries!"})
+          :too-low   (response {:status "success", :message (str "Too low! "  (:tries_left (first (db/get-remaining-tries token))) " tries remaining!")})
+          :too-high  (response {:status "success", :message (str "Too high! " (:tries_left (first (db/get-remaining-tries token))) " tries remaining!")}))
+        ;; (response {:status "success", :message (name result), :tries-left (:tries_left (first (db/get-remaining-tries token)))})
+        ))))
 
-(defn guess-handler [guess user-hash]
-  (condp = (game/guess-answer guess user-hash)
-    nil       (-> (response  "You need to supply a guess with /guess?guess=N")
-                  (status 400))
-    :game-win  (response  (str "Congratulations! You win!"))
-    :game-over (response  "Too bad! You ran out of tries!")
-    :too-low   (response  (str "Too low! "  (db/get-remaining-tries user-hash) " tries remaining!"))
-    :too-high  (response  (str "Too high! " (db/get-remaining-tries user-hash) " tries remaining!"))))
 
 
 (defroutes site-routes
