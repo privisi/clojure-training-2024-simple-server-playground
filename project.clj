@@ -21,6 +21,8 @@
                  [cljs-ajax "0.8.4"]
                  [cljs-http "0.1.46"]
                  [compojure "1.6.1"]
+                 [ring/ring-core "1.11.0"]
+                 [ring/ring-json "0.5.1"]
                  [ring/ring-mock "0.3.0"]
                  [ring/ring-devel "1.5.0"]
                  [ring-cors "0.1.13"]

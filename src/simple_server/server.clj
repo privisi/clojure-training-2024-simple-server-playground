@@ -7,6 +7,7 @@
    [compojure.route           :as route]
    [ring.adapter.jetty    :refer [run-jetty]]
    [ring.middleware.defaults  :as middleware]
+   [ring.middleware.json :refer [wrap-json-response]]
    [ring.middleware.cookies   :as cookies]
    [ring.middleware.multipart-params :as multi]
   ;;  [ring.middleware.cors :refer [wrap-cors]]
@@ -66,23 +67,19 @@
                   :a-set #{1 "foo" :baz [::a ::b]}})
    :headers {"Content-Type" "application/edn"}})
 
-(defn json-response [status data & [error]]
-  (let [body-map (cond-> {:status status :data data}
-                   error (assoc :error error))]
-    (-> (response (json/write-str body-map)) ;; Using cheshire.core/json to write JSON
-        (ring/content-type "application/json"))))
-
-(defn login-api-handler [request]
+(defn login-api-handler [request] (println "AAAAAAAAAAAAAAAa")
   (println request)
   (let [params (get request :params)
         username (:username params)
         password (:password params)]
+  (println "got params:" username password)
     (if (validate-user-credentials username password)
-       (let [user-id (-> (first (db/get-user-id username))
-                         :user_id)]
-         (-> (json-response "success" {:message "Login successful"})
-                            (set-session-cookie user-id)))
-       (json-response "error" nil {:message "Invalid login. Try again."}))))
+      (let [user-id (-> (first (db/get-user-id username))
+                        :user_id)]
+        (response {:status "success", :message "Login successful222"})
+        #_(-> (response {:status "success", :message "Login successful"})
+            #_(set-session-cookie user-id)))
+      (response {:status "error", :message "Invalid login. Try again."}))))
 
 (defn guess-api-handler [request]
   (let [params (get request :params)
@@ -110,7 +107,7 @@
   ;; (POST "/login"             request                     (login-handler request))
   (POST "/api/login"         request                     (login-api-handler request))
   (POST "/api/guess"         request                     (guess-api-handler request)) 
-  (GET  "/api/random"        []                          (random-api))
+  (POST  "/api/random"        []                          (random-api))
   
   ;; (OPTIONS "*"               []                          {}) ;; handle preflight requests
  
@@ -124,25 +121,26 @@
   (GET  "/new-game"          request                     (new-game-handler request))
   ;; (GET  "/guess:token"    [token]                     (guess-page-handler token))
   (GET  "/guess"             [guess :<< as-int :as request]  (guess-handler guess (get-session-cookie request)))
-  (ANY  "*"                  []                          (not-found (str "Sorry, no such URI on this server!"))))
+  (ANY  "*"                  []                          (not-found (str "Sorryasd, noz such URI on this server!"))))
 
 (defn add-content-type-htmltext-header [handler]
   (fn [request]
     (let [response (handler request)]
       (-> response
-          (ring/header "Content-Type" "text/html")))))
+          (ring/header "Content-Type" "application/json")))))
 
 
-(defn redirect-to-login-middleware
-  "If a login cookie (at present, can be anything) is not found, redirects user to the login page."
-  [handler]
-  (fn [request]
-    (let [token (get-session-cookie request)]
-      (clojure.pprint/pprint request)
-      (if (nil? token)
-        (-> (handler (assoc request :uri "/login"))  ; Redirect to /login
-            (ring/header "Content-Type" "text/html"))
-        (handler request)))))
+;; (defn redirect-to-login-middleware
+;;   "If a login cookie (at present, can be anything) is not found, redirects user to the login page."
+;;   [handler]
+;;   (println "ASDSADASDSADAS")
+;;   (fn [request]
+;;     (let [token (get-session-cookie request)]
+;;       ;(clojure.pprint/pprint request)
+;;       (if (nil? token)
+;;         (-> (handler (assoc request :uri "/login"))  ; Redirect to /login
+;;             (ring/header "Content-Type" "text/html"))
+;;         (handler request)))))
 
 
 (def handler
@@ -152,18 +150,21 @@
       ;;            :access-control-allow-methods [:get :post :put :delete :options]
       ;;            :access-control-allow-headers ["Content-Type" "Authorization"]
       ;;            :access-control-max-age 3600)
-      ;; (middleware/wrap-defaults middleware/api-defaults)
-      (redirect-to-login-middleware)
+      (middleware/wrap-defaults middleware/api-defaults)
+      ;; (redirect-to-login-middleware)
       (add-content-type-htmltext-header)
+
       (multi/wrap-multipart-params)
+      (wrap-json-response)
       (cookies/wrap-cookies)))
+
 
 (comment
   (handler (mock/request :get "/new-game"))
   (handler (mock/request :get "/guess?guess=3"))
   (handler (mock/request :get "/dunno")))
 
-#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
-(defonce server
-  (future (run-jetty #'handler {:port 9500 :join? false})))
+;; #_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
+;; (defonce server
+;;   (future (run-jetty #'handler {:port 9500 :join? false})))
 

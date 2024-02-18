@@ -63,9 +63,9 @@
     ;; (println "keys are" username "and" password)
     (go
       (let [response (<! (http/post (str site-url "/api/login")
-                                    {:json-params {:username (form-sanitizer username) :password password}}))]
-        (println response)
-        (if (:success response)
+                                    {:json-params {:username (form-sanitizer username) :password password}}))] 
+        
+        #_(if (:success response)
           (>! event-channel {:type :login-success})
           (>! event-channel {:type :login-fail}))))))
 
@@ -107,24 +107,25 @@
    [:div.message (@app-state :message)]])
 
 
-;; (defn guess-page []
-;;   [:div
-;;    [:h1 "Guessing Game"]
-;;    [:h3 (:text @app-state)]
-;;    [:div {:class "slidecontainer"}
-;;     [:input {:type  "range"
-;;              :id    "MyRange1"
-;;              :min   1
-;;              :max   10
-;;              :value 5
-;;              :on-change slider-on-change-handler}]]
-;;    [:h3 @guess-val]])
+(defn guess-page []
+  [:div
+   [:h1 "Guessing Game"]
+   [:h3 (:text @app-state)]
+   [:div {:class "slidecontainer"}
+    [:input {:type  "range"
+             :id    "MyRange1"
+             :min   1
+             :max   10
+             :value 5
+             :on-change slider-on-change-handler}]]
+   [:button {:on-click submit-guess} "Submit Guess!"][:h3 @guess-val]])
 
 ;; Conditional rendering based on authentication
 (defn app-root []
   (if (@app-state :user-authenticated)
-    [guessing-page]
-    [login-page]))
+    [guess-page]
+    [login-page])
+)
 
 (defn mount-app []
   (rdom/render [app-root] (.getElementById js/document "app")))
