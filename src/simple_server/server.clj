@@ -1,6 +1,5 @@
 (ns simple-server.server
-  (:require
-   [clojure.pprint]
+  (:require 
    [clojure.string :as str]
    [compojure.coercions   :refer [as-int]]
    [compojure.core        :refer [ANY defroutes GET POST OPTIONS]]
@@ -67,18 +66,18 @@
                   :a-set #{1 "foo" :baz [::a ::b]}})
    :headers {"Content-Type" "application/edn"}})
 
-(defn login-api-handler [request] (println "AAAAAAAAAAAAAAAa")
+(defn login-api-handler [request]
   (println request)
   (let [params (get request :params)
         username (:username params)
         password (:password params)]
-  (println "got params:" username password)
+  (println "got params:" username password ", validating: " (validate-user-credentials username password))
     (if (validate-user-credentials username password)
       (let [user-id (-> (first (db/get-user-id username))
                         :user_id)]
         (response {:status "success", :message "Login successful222"})
-        #_(-> (response {:status "success", :message "Login successful"})
-            #_(set-session-cookie user-id)))
+        (-> (response {:status "success", :message "Login successful"})
+            (set-session-cookie user-id)))
       (response {:status "error", :message "Invalid login. Try again."}))))
 
 (defn guess-api-handler [request]

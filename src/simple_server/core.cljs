@@ -63,9 +63,11 @@
     ;; (println "keys are" username "and" password)
     (go
       (let [response (<! (http/post (str site-url "/api/login")
-                                    {:json-params {:username (form-sanitizer username) :password password}}))] 
+                                    {:form-params {:username (form-sanitizer username) :password password}}))]
+        (def r response)
+        (println response)
         
-        #_(if (:success response)
+        (if (= "success" (get-in response [:body :status]))
           (>! event-channel {:type :login-success})
           (>! event-channel {:type :login-fail}))))))
 
@@ -74,7 +76,7 @@
   (let [guess (@app-state :guess)]
     (go
       (let [response (<! (http/post (str site-url "/api/guess")
-                                    {:json-params {:guess guess}}))]
+                                    {:form-params {:guess guess}}))]
         (if (:success response)
           (>! event-channel {:type :guess-response :message (:body response)})
           (>! event-channel {:type :guess-error}))))))
