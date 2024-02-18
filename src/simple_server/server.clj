@@ -9,13 +9,14 @@
    [ring.middleware.defaults  :as middleware]
    [ring.middleware.cookies   :as cookies]
    [ring.middleware.multipart-params :as multi]
-   [ring.middleware.cors :refer [wrap-cors]]
+  ;;  [ring.middleware.cors :refer [wrap-cors]]
    [ring.mock.request         :as mock]
    [ring.util.response        :as ring
     :refer [not-found redirect response status]]
    [simple-server.simple-game :as game]
    [simple-server.db          :as db]
-   [byte-transforms           :as transforms]))
+   [byte-transforms           :as transforms]
+   [clojure.pprint :as pprint]))
 
 ;; (defn random-api []
 ;;   (println "I've been called!")
@@ -58,26 +59,37 @@
         stored-password (:password password-map)]
     (= password stored-password)))
 
+(defn random-api []
+  (println "I've been called!")
+  {:status 200
+   :body (pr-str {:lucky-number (rand-int 1000)
+                  :a-set #{1 "foo" :baz [::a ::b]}})
+   :headers {"Content-Type" "application/edn"}})
 
+(defn json-response [status data & [error]]
+  (let [body-map (cond-> {:status status :data data}
+                   error (assoc :error error))]
+    (-> (response (json/write-str body-map)) ;; Using cheshire.core/json to write JSON
+        (ring/content-type "application/json"))))
 
 (defn login-api-handler [request]
+  (println request)
   (let [params (get request :params)
         username (:username params)
         password (:password params)]
     (if (validate-user-credentials username password)
-      (let [user-id (-> (first (db/get-user-id username))
-                        :user_id)]
-        (-> (response {:status "success", :message "Login successful"})
-            (set-session-cookie user-id)
-            (ring/content-type "application/json")))
-      (ring/response {:status "error", :message "Invalid login. Try again."}))))
+       (let [user-id (-> (first (db/get-user-id username))
+                         :user_id)]
+         (-> (json-response "success" {:message "Login successful"})
+                            (set-session-cookie user-id)))
+       (json-response "error" nil {:message "Invalid login. Try again."}))))
 
 (defn guess-api-handler [request]
   (let [params (get request :params)
         guess (Integer/parseInt (:guess params))
         token (get-session-cookie request)]
     (if (nil? token)
-      (ring/response {:status "error", :message "Unauthorized"})
+      (response {:status "error", :message "Unauthorized"})
       (let [result (game/guess-answer guess token)]
         (response {:status "success", :message (name result), :tries-left (db/get-remaining-tries token)})))))
 
@@ -97,21 +109,22 @@
   ;; (GET  "/login"             []                          (login-page-handler))
   ;; (POST "/login"             request                     (login-handler request))
   (POST "/api/login"         request                     (login-api-handler request))
-  (POST "/api/guess"         request                     (guess-api-handler request))
+  (POST "/api/guess"         request                     (guess-api-handler request)) 
+  (GET  "/api/random"        []                          (random-api))
+  
   ;; (OPTIONS "*"               []                          {}) ;; handle preflight requests
-  (OPTIONS "*" [] (fn [request]
-                    (-> (response "")
-                        (ring/header "Access-Control-Allow-Origin" "http://localhost:9500")
-                        (ring/header "Access-Control-Allow-Methods" "POST, GET, OPTIONS")
-                        (ring/header "Access-Control-Allow-Headers", "content-type, x-requested-with")
-                        (ring/header "Access-Control-Allow-Credentials", "true"))))
+ 
+  ;; (OPTIONS "*" [] (fn [request]
+  ;;                   (-> (response "")
+  ;;                       (ring/header "Access-Control-Allow-Origin" "http://localhost:9500")
+  ;;                       (ring/header "Access-Control-Allow-Methods" "POST, GET, OPTIONS")
+  ;;                       (ring/header "Access-Control-Allow-Headers", "content-type, x-requested-with")
+  ;;                       (ring/header "Access-Control-Allow-Credentials", "true"))))
 
   (GET  "/new-game"          request                     (new-game-handler request))
   ;; (GET  "/guess:token"    [token]                     (guess-page-handler token))
   (GET  "/guess"             [guess :<< as-int :as request]  (guess-handler guess (get-session-cookie request)))
-  (ANY  "*"                  []                          (not-found (str "Sorry, no such URI on this server!\n\n
-                                                                         Navigate to /new-game to start the guessing game.\n
-                                                                         If you're in the middle of a game, go to /guess/?guess=N instead."))))
+  (ANY  "*"                  []                          (not-found (str "Sorry, no such URI on this server!"))))
 
 (defn add-content-type-htmltext-header [handler]
   (fn [request]
@@ -134,12 +147,12 @@
 
 (def handler
   (-> site-routes
-      (wrap-cors :access-control-allow-origin ["http://localhost:9500"] ;; replace with your frontend domain/URL
-                 :access-control-allow-credentials true
-                 :access-control-allow-methods [:get :post :put :delete :options]
-                 :access-control-allow-headers ["Content-Type" "Authorization"]
-                 :access-control-max-age 3600)
-      (middleware/wrap-defaults middleware/api-defaults)
+      ;; (wrap-cors :access-control-allow-origin ["http://localhost:9500"] ;; replace with your frontend domain/URL
+      ;;            :access-control-allow-credentials true
+      ;;            :access-control-allow-methods [:get :post :put :delete :options]
+      ;;            :access-control-allow-headers ["Content-Type" "Authorization"]
+      ;;            :access-control-max-age 3600)
+      ;; (middleware/wrap-defaults middleware/api-defaults)
       (redirect-to-login-middleware)
       (add-content-type-htmltext-header)
       (multi/wrap-multipart-params)
@@ -152,5 +165,5 @@
 
 #_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defonce server
-  (future (run-jetty #'handler {:port 3000 :join? false})))
+  (future (run-jetty #'handler {:port 9500 :join? false})))
 

@@ -43,8 +43,5 @@
 
                    :resource-paths ["target"]
                    ;; need to add the compiled assets to the :clean-targets
-                   :clean-targets ^{:protect false} ["target"]}}
+                   :clean-targets ^{:protect false} ["target"]}})
 
-
-  :repl-options {:init-ns simple-server.core}
-  :main simple-server.server/server)
