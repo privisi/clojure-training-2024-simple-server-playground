@@ -39,42 +39,41 @@
 ;;; finding credentials in database
 
 (defn get-user-id [username]
-  (jdbc/query db-conn ["SELECT user_id
+  (jdbc/query db-conn              ["SELECT user_id
                                     FROM user_info
                                     WHERE username = ?" username]))
 (defn get-username [user-code]
-  (jdbc/query db-conn ["SELECT username
+  (jdbc/query db-conn              ["SELECT username
                                     FROM user_info
                                     WHERE user_id = ?" user-code]))
 (defn get-password [user-code]
-  (jdbc/query db-conn ["SELECT password
+  (jdbc/query db-conn              ["SELECT password
                                     FROM user_info
                                     WHERE user_id = ?" user-code]))
 
-;;; gamestate management
+;;; gamestate management and checking
 
 (defn insert-player [user-code secret-num]
   (jdbc/execute! db-conn ["INSERT INTO games_in_progress 
-                               (user_id, secret_num, tries_left) 
-                               VALUES (?, ?, 6)" (Long/parseLong user-code) secret-num]))
+                                    (user_id, secret_num, tries_left) 
+                                    VALUES (?, ?, 6)" user-code secret-num]))
 
 (defn failed-attempt [user-code]
   (jdbc/execute! db-conn ["UPDATE games_in_progress
-                                SET tries_left = tries_left - 1
-                                WHERE user_id = ?" (Long/parseLong user-code)]))
+                                    SET tries_left = tries_left - 1
+                                    WHERE user_id = ?" user-code]))
 
 (defn reset-game [user-code]
   (jdbc/execute! db-conn ["DELETE FROM games_in_progress
-                             WHERE user_id = ?" (Long/parseLong user-code)]))
+                                    WHERE user_id = ?" user-code]))
 
 (defn get-remaining-tries [user-code]
-  (let [result (jdbc/query db-conn ["SELECT tries_left
-                                    FROM games_in_progress
-                                    WHERE user_id = ?" user-code])]
-    (:tries_left result)))
+  (jdbc/query db-conn              ["SELECT tries_left 
+                                    FROM games_in_progress 
+                                    WHERE user_id = ?" user-code]))
 
 (defn get-secret-num [user-code]
-  (jdbc/query db-conn ["SELECT secret_num
+  (jdbc/query db-conn              ["SELECT secret_num
                                     FROM games_in_progress
                                     WHERE user_id = ?" user-code]))
 

@@ -12,7 +12,7 @@
 (def site-url "http://localhost:9500")
 
 ;; guesser page stuff
-(def guess-val      (r/atom 5))
+(def guess-val      (r/atom "5"))
 
 (def guess-text "Guess the number I'm thinking of!")
 (defonce app-state (r/atom {:text guess-text}))
@@ -73,11 +73,11 @@
 
 ;; Frontend event handler to submit guesses to the backend
 (defn submit-guess []
-  (let [guess (@app-state :guess)]
+  (let [guess (int @guess-val)]
     (go
       (let [response (<! (http/post (str site-url "/api/guess")
                                     {:form-params {:guess guess}}))]
-        (if (:success response)
+        (if (= "success" (get-in response [:body :status]))
           (>! event-channel {:type :guess-response :message (:body response)})
           (>! event-channel {:type :guess-error}))))))
 
@@ -99,14 +99,14 @@
 
 
 
-(defn guessing-page []
-  [:div.guessing-game
-   [:h3 "Guess the number I'm thinking of!"]
-   [:input {:type "number"
-            :value (@app-state :guess)
-            :on-change #(swap! app-state assoc :guess (-> % .-target .-value))}]
-   [:button {:on-click submit-guess} "Submit Guess"]
-   [:div.message (@app-state :message)]])
+;; (defn guessing-page []
+;;   [:div.guessing-game
+;;    [:h3 "Guess the number I'm thinking of!"]
+;;    [:input {:type "number"
+;;             :value (@guess-val)
+;;             :on-change #(swap! app-state assoc :guess (-> % .-target .-value))}]
+;;    [:button {:on-click submit-guess} "Submit Guess"]
+;;    [:div.message (@app-state :message)]])
 
 
 (defn guess-page []

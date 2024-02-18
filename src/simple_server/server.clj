@@ -26,7 +26,7 @@
 ;;    :headers {"Content-Type" "application/edn"}})
 
 (defn set-session-cookie [response user-id]
-  (let [cookie-value (transforms/hash (str user-id) :crc32)] ; Generate a simple cookie value based on the user ID
+  (let [cookie-value (str user-id)] ; Generate a simple cookie value based on the user ID
     (ring/set-cookie response "token" cookie-value {:max-age 3600}))) ; Set cookie with a maximum age of 1 hour
 
 (defn get-session-cookie [request]
@@ -38,12 +38,12 @@
     (response (str "OK - start guessing at /guess/?guess=N"))))
 
 
-(defn valid-login? [token password] ;; placeholder login logic...
-  (or (and (= token "foo") (= password "bar"))
-      (and (= token "admin") (= password "123"))
-      (and (= token "user") (= password "pass"))
-      (and (= token "egg") (= password "man"))
-      (and (= token "test") (= password "test"))))
+;; (defn valid-login? [token password] ;; placeholder login logic...
+;;   (or (and (= token "foo") (= password "bar"))
+;;       (and (= token "admin") (= password "123"))
+;;       (and (= token "user") (= password "pass"))
+;;       (and (= token "egg") (= password "man"))
+;;       (and (= token "test") (= password "test"))))
 
 ;; ;; tried to combine these functions but the login page is very fragile
 ;; (defn login-page-handler []
@@ -81,9 +81,11 @@
       (response {:status "error", :message "Invalid login. Try again."}))))
 
 (defn guess-api-handler [request]
+  (println request)
   (let [params (get request :params)
         guess (Integer/parseInt (:guess params))
-        token (get-session-cookie request)]
+        token  (get-session-cookie request)]
+    (println "got params: " guess token)
     (if (nil? token)
       (response {:status "error", :message "Unauthorized"})
       (let [result (game/guess-answer guess token)]
@@ -97,7 +99,6 @@
     :game-over (response  "Too bad! You ran out of tries!")
     :too-low   (response  (str "Too low! "  (db/get-remaining-tries user-hash) " tries remaining!"))
     :too-high  (response  (str "Too high! " (db/get-remaining-tries user-hash) " tries remaining!"))))
-
 
 
 (defroutes site-routes

@@ -8,23 +8,29 @@
                  (+ 1 (rand-int 10))))
 
 
-(defn guess-answer [guess user-hash]
+(defn guess-answer [guess user-num]
     ;; @games-in-progress
-  (let [user user-hash]
+  (println "Guess answer function got: " guess user-num)
+  (let [user            (Integer/parseInt user-num)
+        secret-num      (:secret_num (first (db/get-secret-num user)))
+        remaining-tries (:tries_left (first (db/get-remaining-tries user)))]
+    (println "secret num: " secret-num "remaining tries: " remaining-tries)
     (cond
       (nil? guess) nil
 
-      (= guess (db/get-secret-num user))
+      (= guess secret-num)
       (and (db/reset-game user) :game-win)
 
-      (= 0 (db/get-remaining-tries user))
+      (= 0 remaining-tries)
       (and (db/reset-game user) :game-over)
 
-      (< guess (db/get-secret-num user))
+      (< guess secret-num)
       (and (db/failed-attempt user)
            :too-low)
 
-      (> guess (db/get-secret-num user))
+      (> guess secret-num)
       (and (db/failed-attempt user)
-           :too-high))))
+           :too-high)
+      :else
+      (println "ERROR: FAILED. USER:" user-num "GUESS:" guess))))
 
