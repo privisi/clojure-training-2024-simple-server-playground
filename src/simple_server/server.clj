@@ -1,5 +1,5 @@
 (ns simple-server.server
-  (:require 
+  (:require
    [clojure.string :as str]
    [compojure.core        :refer [ANY defroutes GET POST OPTIONS]]
    [ring.middleware.defaults  :as middleware]
@@ -26,8 +26,8 @@
 
 
 (defn validate-user-credentials [username password]
-  (let [user-id-map (first (db/get-user-id username)) 
-        user-id (:user_id user-id-map)                 
+  (let [user-id-map (first (db/get-user-id username))
+        user-id (:user_id user-id-map)
         password-map (first (db/get-password user-id))
         stored-password (:password password-map)]
     (= password stored-password)))
@@ -36,15 +36,26 @@
   (let [params (get request :params)
         username (:username params)
         password (:password params)]
-  (println "got params:" username password ", validating: " (validate-user-credentials username password))
+    (println "got params:" username password ", validating: " (validate-user-credentials username password))
     (if (validate-user-credentials username password)
       (let [user-id (-> (first (db/get-user-id username))
-                        :user_id)] 
+                        :user_id)]
         (db/create-tables-if-not-existing)
         (game/new-game! user-id)
         (-> (response {:status "success", :message "Login successful"})
             (set-session-cookie user-id)))
       (response {:status "error", :message "Invalid login. Try again."}))))
+
+(defn start-game-api-handler [request]
+  (println request)
+  (let [token  (Integer/parseInt (get-session-cookie request))]
+    (println "got params:" token)
+    (if (nil? token)
+      (response {:status "error", :message "Unauthorized"})
+      (do (db/create-tables-if-not-existing)
+          ;; (db/make-default-users)  ; uncomment this if you want to make SURE the database has test users.
+          (game/new-game! token)
+          (response {:status "success", :message "Game started."})))))
 
 (defn guess-api-handler [request]
   (let [params (get request :params)
@@ -55,21 +66,23 @@
       (response {:status "error", :message "Unauthorized"})
       (let [result (game/guess-answer guess token)]
         (case result
-          :game-win  (response {:status "success", :message "Congratulations! You win!"})
-          :game-over (response {:status "success", :message "Too bad! You ran out of tries!"})
-          :too-low   (response {:status "success", :message (str "Too low! "  (:tries_left (first (db/get-remaining-tries token))) " tries remaining!")})
-          :too-high  (response {:status "success", :message (str "Too high! " (:tries_left (first (db/get-remaining-tries token))) " tries remaining!")}))))))
+          :game-win  (response {:status "success", :game-state result, :message "Congratulations! You win!"})
+          :game-over (response {:status "success", :game-state result, :message "Too bad! You ran out of tries!"})
+          :too-low   (response {:status "success", :game-state result, :message (str "Too low! "  (:tries_left (first (db/get-remaining-tries token))) " tries remaining!")})
+          :too-high  (response {:status "success", :game-state result, :message (str "Too high! " (:tries_left (first (db/get-remaining-tries token))) " tries remaining!")}))))))
 
 
 
 (defroutes site-routes
   (POST "/api/login"         request                     (login-api-handler request))
-  (POST "/api/guess"         request                     (guess-api-handler request)) 
+  (POST  "/api/start"         request                     (start-game-api-handler request))
+  (POST "/api/guess"         request                     (guess-api-handler request))
   (ANY  "*"                  []                          (not-found (str "Sorry, no such URI on this server!"))))
 
 (defn add-content-type-htmltext-header [handler]
   (fn [request]
     (let [response (handler request)]
+      (println response)
       (-> response
           (ring/header "Content-Type" "application/json")))))
 
