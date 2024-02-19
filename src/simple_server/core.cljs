@@ -145,12 +145,12 @@
              :id    "MyRange1"
              :min   1
              :max   10
-             :value 5
+             :value @guess-val
              :on-change slider-on-change-handler}]]
    [:button {:on-click submit-guess} "Submit Guess!"][:h3 @guess-val]])
 
 (defn win-page []
-  [:div
+  [:div1
    [:h1 "WOW!"] 
    [:div.message (@app-state :message)]])
 
