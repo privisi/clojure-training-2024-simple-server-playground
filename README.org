@@ -7,33 +7,33 @@ Based on https://github.com/alain-picard/simple-server-playground
 
 * Usage
 
-  #+begin_src shell
-lein repl  
-  #+end_src
+1) Database setup
+You need a database set up to accept logins and gamestate.
+The default one listed in db.clj is a postgres database with the following details.
+  {:dbtype "postgresql"
+  :host "localhost"
+  :dbname "postgres"
+  :user "postgres"
+  :password "postgres"
+  :port 5432}
 
-Should start a server listening on [[http://localhost:3000]]
-
-
-
-* HTML Guessing Game
-
-A small guessing game that gives 5 tries to guess a number from 1-10.
-
-*Important URIs:
-Login page: [[http://localhost:3000/login]] 
-At present, valid username and passwords are:
+Default usernames and passwords will also be generated. Comment out line 56 of server.clj if you don't want to add them.
+Valid username and passwords are:
 user    pass
 foo     bar
 admin   123
 egg     man
 test    test
-Sets a cookie in your browser that expires in 1 hour.
 
-New game: [[http://localhost:3000/new-game]] 
-Lets the server start a new game.
-It associates the game with your internal user ID, so multiple sessions at once are possible.
 
-Guess: [[http://localhost:3000/guess?guess=N]]
-The server will tell you if you guessed too high, too low, or if you got it right.
-Replace N with a number from 1 to 10 (eg. ?guess=3) and go to that URL to make the guess.
+2) Starting the application
+
+Start a REPL with Figwheel. It should start a server listening on [[http://localhost:9500]].
+
+3) Running the game
+* Login page
+The login sets a cookie in your browser that expires in 1 hour.
+
+* Guessing Game
+A small guessing game that gives 5 tries to guess a number from 1-10. To replay, load the page again.
 

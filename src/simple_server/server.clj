@@ -53,7 +53,7 @@
     (if (nil? token)
       (response {:status "error", :message "Unauthorized"})
       (do (db/create-tables-if-not-existing)
-          ;; (db/make-default-users)  ; uncomment this if you want to make SURE the database has test users.
+          (db/make-default-users)  ; to make SURE the database has test users.
           (game/new-game! token)
           (response {:status "success", :message "Game started."})))))
 
