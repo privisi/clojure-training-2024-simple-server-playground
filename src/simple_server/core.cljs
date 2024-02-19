@@ -84,7 +84,7 @@
         ))))
 
 
-;; Login component
+;; Page components
 (defn login-page []
   [:div.login-form
    [:h1 "Login"]
@@ -96,19 +96,6 @@
             :on-change #(update-credentials :password (-> % .-target .-value))}]
    [:button {:on-click submit-login} "Login"]
    [:div.message (@app-state :message)]])
-
-
-
-
-;; (defn guessing-page []
-;;   [:div.guessing-game
-;;    [:h3 "Guess the number I'm thinking of!"]
-;;    [:input {:type "number"
-;;             :value (@guess-val)
-;;             :on-change #(swap! app-state assoc :guess (-> % .-target .-value))}]
-;;    [:button {:on-click submit-guess} "Submit Guess"]
-;;    [:div.message (@app-state :message)]])
-
 
 (defn guess-page []
   [:div
@@ -122,6 +109,7 @@
              :value 5
              :on-change slider-on-change-handler}]]
    [:button {:on-click submit-guess} "Submit Guess!"][:h3 @guess-val]])
+
 
 ;; Conditional rendering based on authentication
 (defn app-root []
