@@ -19,24 +19,15 @@
 (defn get-session-cookie [request]
   (get-in request [:cookies "token" :value]))
 
-
-(defn new-game-handler [request]
-  (when (game/new-game! (get-session-cookie request))
-    (response (str "OK - start guessing at /guess/?guess=N"))))
-
-
 (defn validate-user-credentials [username password]
-  (let [user-id-map (first (db/get-user-id username))
-        user-id (:user_id user-id-map)
-        password-map (first (db/get-password user-id))
-        stored-password (:password password-map)]
+  (let [user-id         (:user_id  (first (db/get-user-id username))) 
+        stored-password (:password (first (db/get-password user-id)))]
     (= password stored-password)))
 
 (defn login-api-handler [request]
   (let [params (get request :params)
         username (:username params)
         password (:password params)]
-    (println "got params:" username password ", validating: " (validate-user-credentials username password))
     (if (validate-user-credentials username password)
       (let [user-id (-> (first (db/get-user-id username))
                         :user_id)]
@@ -47,42 +38,38 @@
       (response {:status "error", :message "Invalid login. Try again."}))))
 
 (defn start-game-api-handler [request]
-  (println request)
   (let [token  (Integer/parseInt (get-session-cookie request))]
-    (println "got params:" token)
     (if (nil? token)
       (response {:status "error", :message "Unauthorized"})
-      (do (db/create-tables-if-not-existing)
-          (db/make-default-users)  ; to make SURE the database has test users.
-          (game/new-game! token)
+      (do (game/new-game! token)
           (response {:status "success", :message "Game started."})))))
 
 (defn guess-api-handler [request]
   (let [params (get request :params)
         guess  (Integer/parseInt (:guess params))
         token  (Integer/parseInt (get-session-cookie request))]
-    (println "got params: " guess token)
     (if (nil? token)
       (response {:status "error", :message "Unauthorized"})
-      (let [result (game/guess-answer guess token)]
-        (case result
-          :game-win  (response {:status "success", :game-state result, :message "Congratulations! You win!"})
-          :game-over (response {:status "success", :game-state result, :message "Too bad! You ran out of tries!"})
-          :too-low   (response {:status "success", :game-state result, :message (str "Too low! "  (:tries_left (first (db/get-remaining-tries token))) " tries remaining!")})
-          :too-high  (response {:status "success", :game-state result, :message (str "Too high! " (:tries_left (first (db/get-remaining-tries token))) " tries remaining!")}))))))
+      (if (contains? db/get-playing-users token)
+        (let [result         (game/guess-answer guess token)
+              state-response  #(response {:status "success", :game-state result, :message %})]
+          (case result
+            :game-win  (state-response "Congratulations! You win!")
+            :game-over (state-response "Too bad! You ran out of tries!")
+            :too-low   (state-response (str "Too low! "  (:tries_left (first (db/get-remaining-tries token))) " tries remaining!"))
+            :too-high  (state-response (str "Too high! " (:tries_left (first (db/get-remaining-tries token))) " tries remaining!"))))))))
 
 
 
 (defroutes site-routes
   (POST "/api/login"         request                     (login-api-handler request))
-  (POST  "/api/start"         request                     (start-game-api-handler request))
+  (POST "/api/start"         request                     (start-game-api-handler request))
   (POST "/api/guess"         request                     (guess-api-handler request))
   (ANY  "*"                  []                          (not-found (str "Sorry, no such URI on this server!"))))
 
-(defn add-content-type-htmltext-header [handler]
+(defn add-content-type-json-header [handler]
   (fn [request]
     (let [response (handler request)]
-      (println response)
       (-> response
           (ring/header "Content-Type" "application/json")))))
 
@@ -90,7 +77,7 @@
 (def handler
   (-> site-routes
       (middleware/wrap-defaults middleware/api-defaults)
-      (add-content-type-htmltext-header)
+      (add-content-type-json-header)
       (multi/wrap-multipart-params)
       (wrap-json-response)
       (cookies/wrap-cookies)))

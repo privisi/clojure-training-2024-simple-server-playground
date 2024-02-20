@@ -8,21 +8,14 @@
               :password "postgres"
               :port 5432})
 
-(def default-users [1 "foo"      "bar"
-                    2 "admin"    "123"
-                    3 "user"     "pass"
-                    4 "egg"      "man"
-                    5 "test"     "test"])
-
-
 (defn create-tables-if-not-existing []
   (jdbc/with-db-transaction [txn db-conn]
     (jdbc/execute! txn ["CREATE TABLE IF NOT EXISTS games_in_progress
-                          (user_id bigint,
-                                   secret_num integer,
-                                   tries_left integer)"])
+                                    (user_id bigint PRIMARY KEY,
+                                     secret_num integer,
+                                     tries_left integer)"])
     (jdbc/execute! txn ["CREATE TABLE IF NOT EXISTS user_info
-                            (user_id bigint,
+                                    (user_id  bigint PRIMARY KEY,
                                      username varchar(64),
                                      password varchar(256))"])))
 
@@ -30,11 +23,11 @@
 
 (defn make-default-users []
   (jdbc/execute! db-conn ["INSERT INTO user_info 
-                               VALUES (1, 'foo', 'bar'),
+                               VALUES (1, 'foo',   'bar'),
                                       (2, 'admin', '123'), 
-                                      (3, 'user', 'pass'), 
-                                      (4, 'egg', 'man'), 
-                                      (5, 'test', 'test')"]))
+                                      (3, 'user',  'pass'), 
+                                      (4, 'egg',   'man'), 
+                                      (5, 'test',  'test')"]))
 
 ;;; finding credentials in database
 
@@ -53,7 +46,7 @@
 
 ;;; gamestate management and checking
 
-(defn insert-player [user-code secret-num]
+(defn insert-player-instance [user-code secret-num]
   (jdbc/execute! db-conn ["INSERT INTO games_in_progress 
                                     (user_id, secret_num, tries_left) 
                                     VALUES (?, ?, 6)" user-code secret-num]))
@@ -77,3 +70,6 @@
                                     FROM games_in_progress
                                     WHERE user_id = ?" user-code]))
 
+(defn get-playing-users []
+  (jdbc/query db-conn              ["SELECT user_id
+                                    FROM games_in_progress"]))

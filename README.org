@@ -17,7 +17,12 @@ The default one listed in db.clj is a postgres database with the following detai
   :password "postgres"
   :port 5432}
 
-Default usernames and passwords will also be generated. Comment out line 56 of server.clj if you don't want to add them.
+The tables can be set up with the following REPL command located in db.clj:
+(create-tables-if-not-existing)
+
+Default usernames and passwords can be generated if they don't exist with this command:
+db.clj => (make-default-users)
+
 Valid username and passwords are:
 user    pass
 foo     bar

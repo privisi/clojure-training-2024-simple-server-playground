@@ -15,27 +15,29 @@
 (def guess-val      (r/atom "5"))
 
 (def welcome-text "Login to play the guessing game!")
-(defonce app-state (r/atom {:message welcome-text}))
 
+(defonce app-state (r/atom {:message welcome-text}))
 
 (defn slider-on-change-handler [js-event]
   (reset! guess-val (-> js-event .-target .-value)))
 
-(defn multiply [a b] (* a b))
-
 ;; Frontend event handler to update username and password
-(defn update-credentials [field value]
+(defn update-field!
+  "Updates one field in the app state."
+  [field value]
   (swap! app-state assoc field value))
 
-(defn update-multi [hash-map]
+(defn merge-app-state! 
+  "Merges a hashmap's keys and values to update multiple parts of the app state at once."
+  [hash-map]
   (swap! app-state merge hash-map))
 
 ;; Message text for the user to see.
-(defn set-message [string]
+(defn set-message! [string]
   (swap! app-state assoc :message string))
 
 ;; Change the page that the user is currently viewing.
-(defn goto-page [page-key]
+(defn goto-page! [page-key]
   (swap! app-state assoc :nav-page page-key))
 
 ;; login page functions
@@ -51,19 +53,19 @@
 
 (defn dispatch-event! [e]
   (case (:type e)
-    :login-success   (update-multi
+    :login-success   (merge-app-state!
                       {:user-authenticated true
                        :message "Login successful!"})
-    :login-fail      (set-message "Login failed! Try again.")
-    :guess-response  (set-message (str (:message (:message e))))
-    :guess-error     (set-message "Error submitting guess. Please remain calm and retry.")
-    :game-start-success (update-multi
+    :login-fail      (set-message! "Login failed! Try again.")
+    :guess-response  (set-message! (str (:message (:message e))))
+    :guess-error     (set-message! "Error submitting guess. Please remain calm and retry.")
+    :game-start-success (merge-app-state!
                          {:nav-page :guess-page
                           :message "Guess the number I'm thinking of!"})
-    :game-start-fail (update-multi
+    :game-start-fail (merge-app-state!
                       {:nav-page :login-page
                        :message "Error beginning game. Please try logging in again."})
-    :game-win        (update-multi
+    :game-win        (merge-app-state!
                       {:nav-page :win-page
                        :message (str (:message (:message e)))})
     (println "Unknown event type: " e)))
@@ -119,10 +121,10 @@
    [:h1 "Login"]
    [:input {:type "text"
             :placeholder "Username"
-            :on-change #(update-credentials :username (-> % .-target .-value))}]
+            :on-change #(update-field! :username (-> % .-target .-value))}]
    [:input {:type "password"
             :placeholder "Password"
-            :on-change #(update-credentials :password (-> % .-target .-value))}]
+            :on-change #(update-field! :password (-> % .-target .-value))}]
    [:button {:on-click submit-login} "Login"]
    [:div.message (@app-state :message)]])
 
@@ -141,10 +143,10 @@
    [:h1 "Guessing Game"]
    [:h3 (:message @app-state)]
    [:div {:class "slidecontainer"}
-    [:input {:type  "range"
-             :id    "MyRange1"
-             :min   1
-             :max   10
+    [:input {:type "range"
+             :id   "MyRange1"
+             :min 1
+             :max 10
              :value @guess-val
              :on-change slider-on-change-handler}]]
    [:button {:on-click submit-guess} "Submit Guess!"][:h3 @guess-val]])
